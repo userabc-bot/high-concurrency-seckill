@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>秒杀体验台</title>
+    <style>
+        :root {
+            --bg: #0d1117;
+            --card: #161b22;
+            --border: #262d38;
+            --text: #e6edf3;
+            --muted: #8b949e;
+            --accent: #3b82f6;
+            --success: #22c55e;
+            --warn: #f59e0b;
+            --danger: #ef4444;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background: radial-gradient(circle at 20% 0%, #16233b 0%, var(--bg) 45%);
+            color: var(--text);
+            font-family: system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+            display: flex;
+            justify-content: center;
+            padding: 40px 20px 60px;
+        }
+
+        .app { width: 100%; max-width: 860px; }
+
+        header { margin-bottom: 24px; }
+
+        h1 {
+            margin: 0 0 6px;
+            font-size: 30px;
+            letter-spacing: 1px;
+        }
+
+        .sub { color: var(--muted); font-size: 14px; }
+
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 20px;
+            margin-bottom: 16px;
+        }
+
+        .voucher-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .voucher-title { font-size: 20px; font-weight: 600; }
+
+        .price { color: var(--warn); font-size: 24px; font-weight: 700; }
+
+        .meta { color: var(--muted); font-size: 13px; }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        .stat {
+            background: #0f141d;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 12px;
+            text-align: center;
+        }
+
+        .stat b { display: block; font-size: 22px; margin-top: 4px; }
+        .stat span { color: var(--muted); font-size: 12px; }
+        .stat b.green { color: var(--success); }
+        .stat b.blue { color: var(--accent); }
+        .stat b.amber { color: var(--warn); }
+
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: flex-end;
+            gap: 10px;
+        }
+
+        label {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        input {
+            width: 170px;
+            padding: 9px 12px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: #0f141d;
+            color: var(--text);
+            font-size: 14px;
+            outline: none;
+        }
+
+        input:focus { border-color: var(--accent); }
+
+        button {
+            padding: 10px 16px;
+            border-radius: 8px;
+            border: 1px solid transparent;
+            font-size: 14px;
+            cursor: pointer;
+            transition: transform .05s ease, opacity .15s ease;
+        }
+
+        button:active { transform: translateY(1px); }
+        button:disabled { opacity: .5; cursor: not-allowed; }
+
+        .primary { background: var(--accent); color: #fff; }
+        .ghost { background: transparent; border-color: var(--border); color: var(--text); }
+        .danger { background: transparent; border-color: #5b2730; color: #f87171; }
+
+        .result {
+            margin-top: 16px;
+            padding: 12px 14px;
+            border-radius: 10px;
+            background: #0f141d;
+            border: 1px solid var(--border);
+            min-height: 44px;
+            font-size: 14px;
+            color: var(--muted);
+            line-height: 1.6;
+        }
+
+        .result.ok { border-color: #1d4d31; color: #86efac; }
+        .result.fail { border-color: #5b2730; color: #fca5a5; }
+        .result.busy { border-color: #5c4413; color: #fcd34d; }
+
+        .log-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .log-head h2 { margin: 0; font-size: 15px; font-weight: 600; }
+
+        #log {
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            max-height: 260px;
+            overflow-y: auto;
+            font-family: ui-monospace, Consolas, monospace;
+            font-size: 12px;
+        }
+
+        #log li {
+            padding: 7px 4px;
+            border-bottom: 1px dashed #1f2630;
+            color: var(--muted);
+            display: flex;
+            gap: 10px;
+        }
+
+        #log li:last-child { border-bottom: none; }
+        #log time { color: #4b5563; flex: none; }
+        #log .ok { color: #86efac; }
+        #log .warn { color: #fcd34d; }
+        #log .err { color: #fca5a5; }
+
+        .hint { color: var(--muted); font-size: 12px; margin-top: 10px; }
+
+        @media (max-width: 620px) {
+            .stats { grid-template-columns: repeat(2, 1fr); }
+            .voucher-head { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+<main class="app">
+    <header>
+        <h1>秒杀体验台</h1>
+        <p class="sub">Redis Lua 原子扣减 · 本地售罄标记 · RabbitMQ 异步下单 · 单用户限流</p>
+    </header>
+
+    <section class="card">
+        <div class="voucher-head">
+            <div class="voucher-title" id="title">加载中…</div>
+            <div class="price" id="price">--</div>
+        </div>
+        <div class="meta" id="time" style="margin-bottom:16px"></div>
+        <div class="stats">
+            <div class="stat"><span>DB 库存</span><b class="blue" id="dbStock">--</b></div>
+            <div class="stat"><span>Redis 库存</span><b class="green" id="redisStock">--</b></div>
+            <div class="stat"><span>已下单</span><b id="orderCount">--</b></div>
+            <div class="stat"><span>下单用户</span><b id="userCount">--</b></div>
+        </div>
+    </section>
+
+    <section class="card">
+        <div class="controls">
+            <label>用户 ID
+                <input id="uid" inputmode="numeric">
+            </label>
+            <button class="primary" id="buyBtn">立即抢购</button>
+            <button class="ghost" id="burstBtn">100 人并发抢购</button>
+            <label>重置库存
+                <input id="resetStock" type="number" min="0" value="100">
+            </label>
+            <button class="danger" id="resetBtn">重置活动</button>
+        </div>
+        <div class="result" id="result">点击「立即抢购」开始体验</div>
+        <div class="hint">同一用户重复抢购会返回 409；单用户超过 5 次/秒会返回 429。重置活动会清空该活动的订单。</div>
+    </section>
+
+    <section class="card">
+        <div class="log-head">
+            <h2>请求日志</h2>
+            <span class="meta" id="logCount">0 条</span>
+        </div>
+        <ul id="log"></ul>
+    </section>
+</main>
+
+<script>
+    const VOUCHER_ID = 1;
+    const $ = (id) => document.getElementById(id);
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+    let logCount = 0;
+    let busy = false;
+
+    function randomUserId() {
+        return String(100000 + Math.floor(Math.random() * 899999));
+    }
+
+    function now() {
+        const d = new Date();
+        return d.toLocaleTimeString('zh-CN', {hour12: false}) + '.' +
+            String(d.getMilliseconds()).padStart(3, '0');
+    }
+
+    function addLog(userId, label, cls = '') {
+        const li = document.createElement('li');
+        const t = document.createElement('time');
+        t.textContent = now();
+        const span = document.createElement('span');
+        span.className = cls;
+        span.textContent = userId ? `[用户 ${userId}] ${label}` : label;
+        li.append(t, span);
+        const list = $('log');
+        list.prepend(li);
+        while (list.children.length > 60) list.removeChild(list.lastChild);
+        logCount++;
+        $('logCount').textContent = logCount + ' 条';
+    }
+
+    function setResult(text, type = '') {
+        const el = $('result');
+        el.textContent = text;
+        el.className = 'result' + (type ? ' ' + type : '');
+    }
+
+    async function api(path, options = {}) {
+        const res = await fetch(path, options);
+        return res.json();
+    }
+
+    function codeText(code) {
+        return {
+            200: '抢购成功，订单处理中',
+            409: '您已抢购过该商品',
+            410: '商品已售罄 / 活动已结束',
+            429: '请求过于频繁（限流）',
+            503: '系统繁忙',
+        }[code] || ('返回码 ' + code);
+    }
+
+    async function loadVoucher() {
+        try {
+            const body = await api('/api/voucher/list');
+            const v = body.data && body.data[0];
+            if (!v) return;
+            $('title').textContent = v.title;
+            $('price').textContent = '¥' + Number(v.price).toFixed(2);
+            $('time').textContent = `活动时间：${v.beginTime.replace('T', ' ')} ~ ${v.endTime.replace('T', ' ')}`;
+        } catch (e) {
+            $('title').textContent = '活动加载失败';
+        }
+    }
+
+    async function loadStats() {
+        try {
+            const body = await api(`/api/admin/stats/${VOUCHER_ID}`);
+            const s = body.data;
+            if (!s) return;
+            $('dbStock').textContent = s.dbStock;
+            $('redisStock').textContent = s.redisStock ?? '-';
+            $('orderCount').textContent = s.dbOrderCount;
+            $('userCount').textContent = s.dbUserCount;
+        } catch (e) {
+            /* 服务重启中时忽略 */
+        }
+    }
+
+    async function pollResult(userId) {
+        for (let i = 0; i < 20; i++) {
+            await sleep(400);
+            try {
+                const body = await api(`/api/seckill/result/${VOUCHER_ID}`, {
+                    headers: {'X-User-Id': userId},
+                });
+                const r = body.data;
+                if (r && r.status !== 0) {
+                    const ok = r.status === 1;
+                    setResult(`${ok ? '抢购成功' : r.statusDesc}${r.orderNo ? '，订单号 ' + r.orderNo : ''}`, ok ? 'ok' : 'fail');
+                    addLog(userId, `${r.statusDesc}${r.orderNo ? ' 订单 ' + r.orderNo : ''}`, ok ? 'ok' : 'err');
+                    loadStats();
+                    return;
+                }
+            } catch (e) {
+                /* 继续轮询 */
+            }
+        }
+        setResult('结果查询超时，请稍后在日志中查看', 'fail');
+    }
+
+    async function buy() {
+        if (busy) return;
+        const userId = $('uid').value.trim() || randomUserId();
+        $('uid').value = userId;
+        busy = true;
+        $('buyBtn').disabled = true;
+        setResult('已提交，等待异步下单…', 'busy');
+        try {
+            const body = await api(`/api/seckill/${VOUCHER_ID}`, {
+                method: 'POST',
+                headers: {'X-User-Id': userId},
+            });
+            addLog(userId, `${codeText(body.code)}（code=${body.code}）`, body.code === 200 ? 'ok' : 'warn');
+            if (body.code === 200) {
+                setResult('排队中，正在查询订单结果…', 'busy');
+                await pollResult(userId);
+            } else {
+                setResult(codeText(body.code), body.code === 429 ? 'busy' : 'fail');
+            }
+        } catch (e) {
+            addLog(userId, '网络异常', 'err');
+            setResult('网络异常，请确认服务已启动', 'fail');
+        } finally {
+            busy = false;
+            $('buyBtn').disabled = false;
+            loadStats();
+        }
+    }
+
+    async function burst() {
+        if (busy) return;
+        busy = true;
+        $('burstBtn').disabled = true;
+        const total = 100;
+        setResult(`${total} 个用户同时抢购，发送中…`, 'busy');
+        const started = performance.now();
+        const tasks = Array.from({length: total}, (_, i) => {
+            const uid = String(500000 + i);
+            return api(`/api/seckill/${VOUCHER_ID}`, {
+                method: 'POST',
+                headers: {'X-User-Id': uid},
+            }).then((r) => r.code).catch(() => 'ERR');
+        });
+        const results = await Promise.all(tasks);
+        const elapsed = performance.now() - started;
+        const counts = results.reduce((m, c) => (m[c] = (m[c] || 0) + 1, m), {});
+        const summary = Object.entries(counts).map(([c, n]) => `${c}: ${n}`).join('，');
+        addLog('', `并发 ${total} 人，耗时 ${elapsed.toFixed(0)}ms，${summary}`, 'warn');
+        setResult(`并发完成：${summary}。正在刷新库存…`, 'busy');
+        await sleep(1500);
+        await loadStats();
+        setResult(`并发完成，最终看板：成功 ${counts[200] || 0} 单，售罄 ${counts[410] || 0} 个`, 'ok');
+        busy = false;
+        $('burstBtn').disabled = false;
+    }
+
+    async function reset() {
+        if (busy) return;
+        busy = true;
+        $('resetBtn').disabled = true;
+        const stock = Math.max(0, Number($('resetStock').value) || 0);
+        try {
+            const body = await api(`/api/admin/reset/${VOUCHER_ID}?stock=${stock}`, {method: 'POST'});
+            addLog('', `活动已重置：库存 ${stock}，订单已清空`, 'ok');
+            setResult(`活动已重置，库存恢复为 ${stock}`, 'ok');
+            loadStats();
+        } catch (e) {
+            addLog('', '重置失败', 'err');
+            setResult('重置失败', 'fail');
+        } finally {
+            busy = false;
+            $('resetBtn').disabled = false;
+        }
+    }
+
+    $('buyBtn').addEventListener('click', buy);
+    $('burstBtn').addEventListener('click', burst);
+    $('resetBtn').addEventListener('click', reset);
+    $('uid').addEventListener('keydown', (e) => { if (e.key === 'Enter') buy(); });
+
+    $('uid').value = randomUserId();
+    loadVoucher();
+    loadStats();
+    setInterval(loadStats, 2000);
+</script>
+</body>
+</html>

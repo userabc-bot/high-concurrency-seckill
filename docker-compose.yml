@@ -1,0 +1,41 @@
+services:
+  mysql:
+    image: docker.m.daocloud.io/library/mysql:8.0
+    container_name: seckill-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: seckill123
+      MYSQL_DATABASE: seckill
+      TZ: Asia/Shanghai
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    ports:
+      - "33306:3306"
+    volumes:
+      - ./sql:/docker-entrypoint-initdb.d:ro
+      - seckill-mysql-data:/var/lib/mysql
+    healthcheck:
+      test: [ "CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-pseckill123" ]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+
+  redis:
+    image: docker.m.daocloud.io/library/redis:7-alpine
+    container_name: seckill-redis
+    ports:
+      - "6382:6379"
+    command: [ "redis-server", "--appendonly", "no" ]
+
+  rabbitmq:
+    image: docker.m.daocloud.io/library/rabbitmq:3-management-alpine
+    container_name: seckill-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: admin123
+    ports:
+      - "5680:5672"
+      - "15680:15672"
+
+volumes:
+  seckill-mysql-data:

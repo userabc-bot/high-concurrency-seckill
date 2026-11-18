@@ -1,0 +1,50 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: seckill
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://127.0.0.1:33306/seckill?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true&rewriteBatchedStatements=true
+    username: root
+    password: seckill123
+    hikari:
+      maximum-pool-size: 30
+      minimum-idle: 5
+      connection-timeout: 3000
+      pool-name: SeckillHikariPool
+  redis:
+    host: 127.0.0.1
+    port: 6382
+    timeout: 2000ms
+    lettuce:
+      pool:
+        max-active: 64
+        max-idle: 16
+        min-idle: 8
+  rabbitmq:
+    host: 127.0.0.1
+    port: 5680
+    username: admin
+    password: admin123
+    publisher-confirm-type: correlated
+    listener:
+      simple:
+        acknowledge-mode: manual
+        prefetch: 20
+        concurrency: 8
+        max-concurrency: 16
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+  global-config:
+    banner: false
+
+logging:
+  charset:
+    console: UTF-8
+    file: UTF-8
+  level:
+    com.seckill: info
